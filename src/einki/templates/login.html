@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>einki — Log In</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 60px auto;
+            padding: 0 20px;
+            background: #f8f9fa;
+            color: #212529;
+        }
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 24px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        label {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        input[type="text"],
+        input[type="password"] {
+            padding: 10px 12px;
+            font-size: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 6px;
+            background: #212529;
+            color: #fff;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+        button:hover {
+            background: #495057;
+        }
+        .error {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Log in to einki</h1>
+    {% if error %}
+    <p class="error">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('login') }}">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required>
+        <label for="password">Password</label>
+        <div style="position:relative;">
+            <input type="password" id="password" name="password" required>
+            <button type="button" onclick="togglePassword()" id="toggle-pw"
+                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;padding:4px 8px;font-size:0.85rem;color:#6c757d;cursor:pointer;">
+                Show
+            </button>
+        </div>
+        <button type="submit">Log in</button>
+    </form>
+    <script>
+        function togglePassword() {
+            var pw = document.getElementById('password');
+            var btn = document.getElementById('toggle-pw');
+            if (pw.type === 'password') {
+                pw.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                pw.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+    </script>
+</body>
+</html>

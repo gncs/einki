@@ -1,0 +1,92 @@
+[project]
+name = "einki"
+version = "0.1.0"
+description = "Anki flashcard server for Kindle e-ink browsers"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3",
+    "flask-login>=0.6",
+]
+
+[project.scripts]
+einki = "einki._cli:main"
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1",
+    "pytest>=9",
+    "pytest-cov>=6",
+    "pytest-randomly>=4.0.1",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.15",
+    "ty>=0.0.17",
+]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.format]
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812", # conflicts with ruff formatter
+    "D203",   # conflicts with D211 (no-blank-line-before-class)
+    "D213",   # conflicts with D212 (multi-line-summary-first-line)
+    "D105",   # missing docstring in magic method — dunder methods are self-explanatory
+    "D107",   # missing docstring in __init__ — class docstring suffices
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_*.py" = [
+    "S101",    # allow assert in tests
+    "PLR2004", # allow magic values in test assertions
+    "SLF001",  # tests may access private members
+    "ARG001",  # mock functions may have unused args
+    "ARG005",  # mock lambdas may have unused args
+]
+"tests/__init__.py" = [
+    "D104",    # don't require docstring in test package __init__
+]
+"scripts/*.py" = [
+    "T201",    # allow print in scripts
+    "INP001",  # scripts are not a package
+    "S310",    # allow urllib.request.urlopen for known APIs
+]
+
+[tool.ty.rules]
+all = "error"
+unused-type-ignore-comment = "ignore"  # type: ignore comments are for mypy, not ty
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    "ignore:datetime.datetime.utcnow:DeprecationWarning:flask_login.login_manager",
+]
+timeout = 60
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["src/*/_cli.py"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["flask_login"]
+ignore_missing_imports = true

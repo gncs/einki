@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# Development overrides — NOT auto-loaded.
+#
+# Activate with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# In dev we bypass nginx entirely and expose Flask directly on port 5000,
+# enable Flask debug + reloader, and stub out nginx, DuckDNS, and
+# certbot-renew so they exit immediately instead of waiting for certs.
+#
+# Production uses the default `docker compose up` (no -f flags).
+# ---------------------------------------------------------------------------
+services:
+  # Use dev credentials instead of .env; enable Flask debug + reload.
+  # Expose 5000 directly so the browser talks to Flask without nginx.
+  # Bind-mount ./src so source edits trigger the reloader in the container.
+  # --no-sync: the image already ran `uv sync --frozen` at build time.
+  # Without it, `uv run` inspects the project on startup, sees the baked
+  # egg-info hidden by the read-only bind mount, and tries to reinstall
+  # the editable package — which fails because the mount is read-only.
+  einki:
+    env_file:
+      !override
+      - ./.env.dev
+    command: ["uv", "run", "--no-sync", "einki", "--host", "0.0.0.0", "--debug"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./src:/app/src:ro
+
+  # Disable nginx in dev — Flask is reached directly on :5000.
+  nginx:
+    ports: !override []
+    entrypoint: ["echo", "nginx disabled in dev"]
+    restart: "no"
+
+  # Disable DuckDNS updater in dev.
+  duckdns:
+    env_file:
+      !override
+      - ./.env.dev
+    entrypoint: ["echo", "duckdns disabled in dev"]
+    restart: "no"
+
+  # Disable cert renewal in dev.
+  certbot-renew:
+    env_file:
+      !override
+      - ./.env.dev
+    entrypoint: ["echo", "certbot-renew disabled in dev"]
+    restart: "no"

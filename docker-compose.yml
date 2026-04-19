@@ -1,0 +1,132 @@
+name: einki
+
+services:
+  anki:
+    build: docker/anki-headless
+    ports:
+      - "127.0.0.1:8765:8765"   # AnkiConnect API (localhost only)
+      - "127.0.0.1:5900:5900"   # VNC for initial setup (localhost only)
+    environment:
+      - ANKICONNECT_WILDCARD_ORIGIN=0
+      - QT_QPA_PLATFORM=vnc
+    volumes:
+      - anki-data:/data
+    restart: unless-stopped
+
+  einki:
+    build:
+      context: .
+      dockerfile: docker/einki/Dockerfile
+    environment:
+      - ANKI_URL=http://anki:8765  # Docker DNS resolves service name "anki"
+    env_file: .env
+    depends_on:
+      - anki
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # nginx — reverse proxy with TLS termination
+  # Listens on port 80 (HTTP → HTTPS redirect) and 443 (HTTPS → einki).
+  # Reads Let's Encrypt certificates from the shared letsencrypt volume.
+  # The custom command runs a background loop that reloads nginx every 6 hours
+  # so renewed certificates are picked up without manual intervention.
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro   # certs from certbot (read-only)
+    depends_on:
+      - einki
+    restart: unless-stopped
+    # Reload nginx config every 6h in the background to pick up renewed certs.
+    # "trap exit TERM" ensures graceful shutdown on docker stop.
+    # "wait $!" ensures the sleep is interruptible by signals.
+    command: >-
+      sh -c "
+        trap exit TERM;
+        while :; do sleep 6h & wait $$!; nginx -s reload; done &
+        nginx -g 'daemon off;'
+      "
+
+  # ---------------------------------------------------------------------------
+  # duckdns — dynamic DNS updater
+  # Keeps the DuckDNS A record pointing to this server's public IP.
+  # Updates every 5 minutes (the linuxserver image default).
+  # Requires DUCKDNS_SUBDOMAIN and DUCKDNS_TOKEN in ~/.einki.env.
+  # ---------------------------------------------------------------------------
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    environment:
+      - SUBDOMAINS=${DUCKDNS_SUBDOMAIN:-}
+      - TOKEN=${DUCKDNS_TOKEN:-}
+      - UPDATE_IP=ipv4
+      - LOG_FILE=false   # log to stdout (visible via docker compose logs)
+    env_file: .env
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # certbot — obtain initial Let's Encrypt certificate (one-shot)
+  # Uses the DNS-01 challenge via the DuckDNS API. Hook scripts in
+  # docker/certbot/hooks/ set and clear the TXT record — just a curl call
+  # each. Only runs when explicitly invoked:
+  #   docker compose --profile setup run --rm certbot
+  # ---------------------------------------------------------------------------
+  certbot:
+    build: docker/certbot
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+    env_file: .env
+    # certonly: obtain a new certificate
+    # --manual: use external hook scripts instead of a plugin
+    # --cert-name cert: store under /etc/letsencrypt/live/cert/ (stable path)
+    # --register-unsafely-without-email: LE shut down expiration emails
+    command: >-
+      certonly
+        --non-interactive
+        --agree-tos
+        --register-unsafely-without-email
+        --preferred-challenges dns
+        --manual
+        --manual-auth-hook /opt/duckdns-hooks/auth-hook.sh
+        --manual-cleanup-hook /opt/duckdns-hooks/cleanup-hook.sh
+        --cert-name cert
+        -d "${DUCKDNS_SUBDOMAIN:-unused}.duckdns.org"
+    profiles:
+      - setup
+
+  # ---------------------------------------------------------------------------
+  # certbot-renew — automatic certificate renewal (always running)
+  # Tries to renew every 12 hours. Certbot only actually renews when the cert
+  # is within 30 days of expiry (i.e. roughly every 60 days). This is the
+  # recommended renewal frequency from Let's Encrypt.
+  # nginx picks up new certs via its periodic reload (see nginx command above).
+  # ---------------------------------------------------------------------------
+  certbot-renew:
+    build: docker/certbot
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+    env_file: .env
+    # The entrypoint loop: sleep 12h, then renew, repeat.
+    # "trap exit TERM" ensures graceful shutdown.
+    # "wait $!" ensures sleep is interruptible.
+    entrypoint: >-
+      sh -c "
+        trap exit TERM;
+        while :; do
+          sleep 12h & wait $$!;
+          certbot renew;
+        done
+      "
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+volumes:
+  anki-data:
+  # Shared volume for Let's Encrypt certificates and state.
+  # Written by certbot/certbot-renew, read by nginx.
+  letsencrypt:

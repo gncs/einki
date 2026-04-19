@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study — {{ deck }}</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 60px auto;
+            padding: 0 20px;
+            background: #f8f9fa;
+            color: #212529;
+        }
+        .header {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        .header a { color: #6c757d; }
+        .error { color: #dc3545; font-size: 0.9rem; }
+        .card-content {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .show-answer-btn, .ease-btn {
+            display: inline-block;
+            padding: 12px 20px;
+            font-size: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            text-decoration: none;
+            color: #212529;
+            text-align: center;
+        }
+        .show-answer-btn {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            background: #212529;
+            color: #fff;
+            border: none;
+        }
+        .show-answer-btn:hover { background: #495057; }
+        .ease-btn:hover { background: #e9ecef; }
+        .answer-section { display: none; }
+        .ease-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .ease-btn {
+            flex: 1;
+        }
+        hr#answer { border: none; border-top: 1px solid #dee2e6; margin: 16px 0; }
+        .done { text-align: center; }
+        .done h2 { font-size: 1.4rem; }
+        .done p { color: #6c757d; }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .undo-form { display: inline; }
+        .undo-btn {
+            background: none;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 0.85rem;
+            color: #6c757d;
+            cursor: pointer;
+        }
+        .undo-btn:hover { background: #e9ecef; }
+        .mark-btn {
+            background: none;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 0.85rem;
+            color: #6c757d;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .mark-btn:hover { background: #e9ecef; }
+        .mark-btn.marked {
+            background: #fff3cd;
+            border-color: #ffecb5;
+            color: #664d03;
+        }
+        .mark-btn.marked:hover { background: #ffe69c; }
+        @media (max-width: 480px) {
+            .mark-label { display: none; }
+        }
+        .stats {
+            display: flex;
+            justify-content: flex-start;
+            gap: 16px;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+        .stats .new { color: #0d6efd; font-weight: 600; margin-right: 10px; }
+        .stats .learn { color: #dc3545; font-weight: 600; margin-right: 10px; }
+        .stats .review { color: #198754; font-weight: 600; }
+        .stats .current { text-decoration: underline; }
+        .stale {
+            text-align: center;
+            background: #fff3cd;
+            border: 1px solid #ffecb5;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .stale p { color: #664d03; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="header-row">
+        <p class="header" style="margin:0;"><a href="/decks">← Decks</a> / {{ deck }}</p>
+        <div style="display:flex;gap:8px;">
+            {% if card %}
+            <form method="post" action="/mark_card" class="undo-form">
+                <input type="hidden" name="deck" value="{{ deck }}">
+                <input type="hidden" name="note_id" value="{{ card.note_id }}">
+                <input type="hidden" name="answer_shown" value="{{ '1' if answer_shown else '0' }}" class="answer-shown-flag">
+                <button type="submit" class="mark-btn {{ 'marked' if card.is_marked }}" title="{{ 'Unmark' if card.is_marked else 'Mark' }}">
+                    <span class="mark-star">{{ "★" if card.is_marked else "☆" }}</span><span class="mark-label"> {{ "Marked" if card.is_marked else "Mark" }}</span>
+                </button>
+            </form>
+            {% endif %}
+            <form method="post" action="/sync" class="undo-form">
+                <input type="hidden" name="next" value="/study/{{ deck }}">
+                <input type="hidden" name="answer_shown" value="{{ '1' if answer_shown else '0' }}" class="answer-shown-flag">
+                <button type="submit" class="undo-btn">Sync</button>
+            </form>
+            <form method="post" action="/undo" class="undo-form">
+                <input type="hidden" name="deck" value="{{ deck }}">
+                <button type="submit" class="undo-btn">Undo</button>
+            </form>
+        </div>
+    </div>
+
+    {% if sync_failed %}
+    <p style="background:#fff3cd;color:#664d03;padding:8px 12px;border-radius:6px;border:1px solid #ffecb5;font-size:0.9rem;">⚠ Sync with AnkiWeb failed.</p>
+    {% endif %}
+
+    {% if stats %}
+    {% set current_state = card.state if card else None %}
+    <div class="stats">
+        <span class="new {{ 'current' if current_state == 'new' }}">{{ stats.new }} new</span>
+        <span class="learn {{ 'current' if current_state == 'learn' }}">{{ stats.learn }} learn</span>
+        <span class="review {{ 'current' if current_state == 'review' }}">{{ stats.review }} review</span>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <p class="error">{{ error }}</p>
+    {% elif undo_failed is defined and undo_failed %}
+    <div class="stale">
+        <p>Nothing to undo.</p>
+        <a href="/study/{{ deck }}" class="show-answer-btn" style="display:inline-block;margin-top:8px;">Continue</a>
+    </div>
+    {% elif stale is defined and stale %}
+    <div class="stale">
+        <p>This card was already answered elsewhere.</p>
+        <a href="/study/{{ deck }}" class="show-answer-btn" style="display:inline-block;margin-top:8px;">Continue</a>
+    </div>
+    {% elif card is none or done is defined %}
+    <div class="done">
+        <h2>🎉 All done!</h2>
+        <p>No more cards due in this deck.</p>
+        <a href="/decks" class="show-answer-btn" style="display:inline-block;margin-top:16px;">Back to decks</a>
+    </div>
+    {% else %}
+    <style>{{ card.css | safe }}</style>
+
+    <div class="card-content" id="question"{% if answer_shown %} style="display:none"{% endif %}>
+        {{ card.question | safe }}
+    </div>
+
+    <button class="show-answer-btn" id="show-btn"{% if answer_shown %} style="display:none"{% endif %} onclick="showAnswer()">Show Answer</button>
+
+    <div class="answer-section" id="answer-section"{% if answer_shown %} style="display:block"{% endif %}>
+        <div class="card-content">
+            {{ card.answer | safe }}
+        </div>
+        <form method="post" action="/answer_card">
+            <input type="hidden" name="deck" value="{{ deck }}">
+            <input type="hidden" name="card_id" value="{{ card.card_id }}">
+            <div class="ease-buttons">
+                {% set labels = {1: "Again", 2: "Hard", 3: "Good", 4: "Easy"} %}
+                {% for i in range(card.buttons | length) %}
+                <button type="submit" name="ease" value="{{ card.buttons[i] }}" class="ease-btn">
+                    {{ labels[card.buttons[i]] }}
+                    {% if card.next_reviews[i] is defined %}
+                    <small style="display:block;font-size:0.75rem;color:#6c757d;">{{ card.next_reviews[i] }}</small>
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function showAnswer() {
+            document.getElementById('show-btn').style.display = 'none';
+            document.getElementById('question').style.display = 'none';
+            document.getElementById('answer-section').style.display = 'block';
+            var flags = document.querySelectorAll('.answer-shown-flag');
+            for (var i = 0; i < flags.length; i++) {
+                flags[i].value = '1';
+            }
+        }
+    </script>
+    {% endif %}
+</body>
+</html>

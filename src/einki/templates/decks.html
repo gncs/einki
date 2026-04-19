@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anki Decks</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 60px auto;
+            padding: 0 20px;
+            background: #f8f9fa;
+            color: #212529;
+        }
+        h1 { font-size: 1.4rem; margin-bottom: 24px; }
+        .error { color: #dc3545; font-size: 0.9rem; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th { font-size: 0.85rem; color: #6c757d; }
+        td { font-size: 1rem; }
+        .num { text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>Anki Decks</h1>
+    {% if sync_failed %}
+    <p class="error" style="background:#fff3cd;color:#664d03;padding:8px 12px;border-radius:6px;border:1px solid #ffecb5;">⚠ Sync with AnkiWeb failed.</p>
+    {% endif %}
+    {% if error %}
+    <p class="error">{{ error }}</p>
+    {% endif %}
+    {% if decks %}
+    <table>
+        <thead>
+            <tr>
+                <th>Deck</th>
+                <th class="num">New</th>
+                <th class="num">Learn</th>
+                <th class="num">Due</th>
+                <th class="num">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for deck in decks %}
+            <tr>
+                <td><a href="/study/{{ deck.name }}" style="color:#212529;text-decoration:none;border-bottom:1px dashed #6c757d;">{{ deck.name }}</a></td>
+                <td class="num">{{ deck.new }}</td>
+                <td class="num">{{ deck.learn }}</td>
+                <td class="num">{{ deck.review }}</td>
+                <td class="num">{{ deck.total }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</body>
+</html>
