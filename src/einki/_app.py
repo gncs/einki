@@ -1,9 +1,13 @@
 """Flask application factory."""
 
+import dataclasses
 import datetime
 import logging
+import mimetypes
 import os
+import re
 import secrets
+import urllib.parse
 
 import flask
 import flask_login
@@ -13,6 +17,31 @@ from einki._anki_client import AnkiClient
 from einki._sync import sync_state, trigger_sync
 
 LOG = logging.getLogger(__name__)
+
+_IMG_SRC_RE = re.compile(
+    r'(<img\b[^>]*?\bsrc=)(["\'])([^"\']+)\2',
+    re.IGNORECASE,
+)
+_ABSOLUTE_URL_PREFIXES = ("http:", "https:", "data:", "//", "/media/")
+
+
+def _rewrite_media_urls(html: str) -> str:
+    """Prefix bare ``<img src="...">`` filenames with ``/media/``.
+
+    Absolute URLs (``http:``, ``https:``, ``data:``, protocol-relative
+    ``//...``) and already-prefixed ``/media/...`` values are left
+    untouched. Filenames are URL-encoded so spaces and non-ASCII
+    characters survive.
+    """
+
+    def replace(match: re.Match[str]) -> str:
+        prefix, quote, value = match.group(1), match.group(2), match.group(3)
+        if value.startswith(_ABSOLUTE_URL_PREFIXES):
+            return match.group(0)
+        quoted = urllib.parse.quote(value, safe="/")
+        return f"{prefix}{quote}/media/{quoted}{quote}"
+
+    return _IMG_SRC_RE.sub(replace, html)
 
 
 class _User(flask_login.UserMixin):  # type: ignore[misc]
@@ -138,6 +167,35 @@ def _register_anki_routes(  # noqa: C901
         """Toggle the 'marked' tag on the current card's note."""
         return _handle_mark(anki_client)
 
+    @app.route("/media/<path:filename>")
+    @flask_login.login_required  # type: ignore[untyped-decorator]
+    def media(filename: str) -> werkzeug.Response:
+        """Serve a file from Anki's ``collection.media`` folder."""
+        return _serve_media(anki_client, filename)
+
+
+def _serve_media(
+    anki_client: AnkiClient | None,
+    filename: str,
+) -> werkzeug.Response:
+    """Fetch a media file via AnkiConnect and return it to the browser."""
+    if anki_client is None:
+        flask.abort(404)
+    parts = filename.split("/")
+    if any(part in ("", "..") for part in parts):
+        flask.abort(404)
+    try:
+        data = anki_client.retrieve_media_file(filename)
+    except Exception:
+        LOG.exception("Failed to retrieve media '%s'", filename)
+        flask.abort(404)
+    if data is None:
+        flask.abort(404)
+    mimetype, _ = mimetypes.guess_type(filename)
+    response = flask.Response(data, mimetype=mimetype or "application/octet-stream")
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
 
 def _handle_mark(anki_client: AnkiClient | None) -> werkzeug.Response:
     """Toggle the 'marked' tag on the current card's note."""
@@ -215,6 +273,12 @@ def _render_study(
     try:
         anki_client.start_review(deck)
         card = anki_client.current_card()
+        if card is not None:
+            card = dataclasses.replace(
+                card,
+                question=_rewrite_media_urls(card.question),
+                answer=_rewrite_media_urls(card.answer),
+            )
         all_stats = anki_client.deck_stats()
         stats = next((s for s in all_stats if s.name == deck), None)
         if card is None:

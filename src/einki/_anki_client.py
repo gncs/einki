@@ -1,5 +1,6 @@
 """Client for the AnkiConnect HTTP API."""
 
+import base64
 import dataclasses
 import json
 import logging
@@ -219,3 +220,22 @@ class AnkiClient:
         """Sync the Anki collection with AnkiWeb."""
         self._invoke("sync")
         LOG.info("Sync complete")
+
+    def retrieve_media_file(self, filename: str) -> bytes | None:
+        """Fetch a file from Anki's ``collection.media`` folder.
+
+        Returns ``None`` if Anki doesn't have the file.
+        """
+        result: str | bool = self._invoke(
+            "retrieveMediaFile",
+            filename=filename,
+        )
+        if result is False:
+            LOG.debug("Media file not found: %s", filename)
+            return None
+        if not isinstance(result, str):
+            msg = f"Unexpected retrieveMediaFile response: {type(result).__name__}"
+            raise TypeError(msg)
+        data = base64.b64decode(result)
+        LOG.info("Retrieved media file '%s' (%d bytes)", filename, len(data))
+        return data
