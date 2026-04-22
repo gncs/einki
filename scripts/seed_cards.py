@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""Seed the Default deck with 10 sample flashcards via AnkiConnect."""
+"""Seed the Default deck with sample flashcards via AnkiConnect."""
+
+import argparse
+import base64
+import pathlib
+import sys
 
 from einki._anki_client import AnkiClient
+
+_DECK = "Default"
 
 CARDS = [
     ("What is the capital of France?", "Paris"),
@@ -16,16 +23,76 @@ CARDS = [
     ("Who painted the Mona Lisa?", "Leonardo da Vinci"),
 ]
 
+# One extra card that embeds an image, so we can verify whether images
+# rendered by Anki show up in the einki web UI.
+_IMAGE_SOURCE = pathlib.Path(__file__).parent / "seed_image_dice.png"
+_IMAGE_MEDIA_NAME = "einki_sample_dice.png"
+_IMAGE_CARD = (
+    f'How many dots? <br><img src="{_IMAGE_MEDIA_NAME}">',
+    "It depends on the die.",
+)
+
+
+def _upload_image(client: AnkiClient) -> None:
+    """Upload the sample image into Anki's media folder."""
+    data = base64.b64encode(_IMAGE_SOURCE.read_bytes()).decode("ascii")
+    client._invoke(  # noqa: SLF001
+        "storeMediaFile",
+        filename=_IMAGE_MEDIA_NAME,
+        data=data,
+    )
+    print(f"Uploaded media: {_IMAGE_MEDIA_NAME} (from {_IMAGE_SOURCE.name})")
+
+
+def _wipe_deck(client: AnkiClient, deck: str) -> None:
+    """Delete every note in *deck* after an interactive confirmation."""
+    note_ids: list[int] = client._invoke(  # noqa: SLF001
+        "findNotes",
+        query=f"deck:{deck}",
+    )
+    if not note_ids:
+        print(f"Deck '{deck}' is already empty.")
+        return
+
+    prompt = (
+        f"About to delete {len(note_ids)} notes from deck '{deck}'. "
+        "Type 'yes' to confirm: "
+    )
+    answer = input(prompt).strip().lower()
+    if answer != "yes":
+        print("Aborted; no notes were deleted.")
+        sys.exit(1)
+
+    client._invoke("deleteNotes", notes=note_ids)  # noqa: SLF001
+    print(f"Deleted {len(note_ids)} notes from '{deck}'.")
+
 
 def main() -> None:
     """Add sample notes to the Default deck."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--wipe",
+        action="store_true",
+        help=(
+            f"Delete all notes in the '{_DECK}' deck before seeding "
+            "(asks for confirmation)."
+        ),
+    )
+    args = parser.parse_args()
+
     client = AnkiClient()
 
-    for front, back in CARDS:
+    if args.wipe:
+        _wipe_deck(client, _DECK)
+
+    _upload_image(client)
+
+    all_cards = [_IMAGE_CARD, *CARDS]
+    for front, back in all_cards:
         client._invoke(  # noqa: SLF001
             "addNote",
             note={
-                "deckName": "Default",
+                "deckName": _DECK,
                 "modelName": "Basic",
                 "fields": {"Front": front, "Back": back},
                 "options": {"allowDuplicate": True},
@@ -33,8 +100,8 @@ def main() -> None:
         )
         print(f"Added: {front}")
 
-    print(f"\nDone — added {len(CARDS)} cards to Default deck.")
-    print(f"Total cards: {client.count_cards('Default')}")
+    print(f"\nDone — added {len(all_cards)} cards to {_DECK} deck.")
+    print(f"Total cards: {client.count_cards(_DECK)}")
 
 
 if __name__ == "__main__":
