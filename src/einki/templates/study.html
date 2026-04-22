@@ -97,6 +97,34 @@
             color: #664d03;
         }
         .mark-btn.marked:hover { background: #ffe69c; }
+        .suspend-menu {
+            position: relative;
+            display: inline-block;
+        }
+        .suspend-menu > summary {
+            list-style: none;
+            cursor: pointer;
+        }
+        .suspend-menu > summary::-webkit-details-marker { display: none; }
+        .suspend-menu[open] > summary {
+            background: #e9ecef;
+        }
+        .suspend-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 10;
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 6px;
+            min-width: 80px;
+        }
+        .suspend-options .undo-btn { width: 100%; text-align: left; }
         @media (max-width: 480px) {
             .mark-label { display: none; }
         }
@@ -127,6 +155,23 @@
         <p class="header" style="margin:0;"><a href="/decks">← Decks</a> / {{ deck }}</p>
         <div style="display:flex;gap:8px;">
             {% if card %}
+            <details class="suspend-menu">
+                <summary class="undo-btn" title="Suspend">Suspend</summary>
+                <div class="suspend-options">
+                    <form method="post" action="/suspend" class="undo-form">
+                        <input type="hidden" name="deck" value="{{ deck }}">
+                        <input type="hidden" name="card_id" value="{{ card.card_id }}">
+                        <input type="hidden" name="scope" value="card">
+                        <button type="submit" class="undo-btn">Card</button>
+                    </form>
+                    <form method="post" action="/suspend" class="undo-form">
+                        <input type="hidden" name="deck" value="{{ deck }}">
+                        <input type="hidden" name="note_id" value="{{ card.note_id }}">
+                        <input type="hidden" name="scope" value="note">
+                        <button type="submit" class="undo-btn">Note</button>
+                    </form>
+                </div>
+            </details>
             <form method="post" action="/mark_card" class="undo-form">
                 <input type="hidden" name="deck" value="{{ deck }}">
                 <input type="hidden" name="note_id" value="{{ card.note_id }}">
@@ -219,6 +264,14 @@
                 flags[i].value = '1';
             }
         }
+        document.addEventListener('click', function (event) {
+            var menus = document.querySelectorAll('details.suspend-menu[open]');
+            for (var i = 0; i < menus.length; i++) {
+                if (!menus[i].contains(event.target)) {
+                    menus[i].removeAttribute('open');
+                }
+            }
+        });
     </script>
     {% endif %}
 </body>

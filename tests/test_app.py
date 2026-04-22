@@ -106,3 +106,58 @@ def test_logout_clears_session() -> None:
     response = client.get("/")
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
+
+
+def test_suspend_requires_login() -> None:
+    """POST /suspend without a session should redirect to /login."""
+    client = _make_client()
+
+    response = client.post(
+        "/suspend",
+        data={"deck": "Default", "scope": "card", "card_id": "1"},
+    )
+
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
+def test_suspend_card_without_anki_redirects() -> None:
+    """POST /suspend (scope=card) with no AnkiClient redirects to /study/<deck>."""
+    client = _make_client()
+    _login(client)
+
+    response = client.post(
+        "/suspend",
+        data={"deck": "Default", "scope": "card", "card_id": "1"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/study/Default"
+
+
+def test_suspend_note_without_anki_redirects() -> None:
+    """POST /suspend (scope=note) with no AnkiClient redirects to /study/<deck>."""
+    client = _make_client()
+    _login(client)
+
+    response = client.post(
+        "/suspend",
+        data={"deck": "Default", "scope": "note", "note_id": "1"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/study/Default"
+
+
+def test_suspend_unknown_scope_redirects() -> None:
+    """An unknown scope must not raise — just redirect back."""
+    client = _make_client()
+    _login(client)
+
+    response = client.post(
+        "/suspend",
+        data={"deck": "Default", "scope": "garbage"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/study/Default"
