@@ -216,6 +216,22 @@ class AnkiClient:
         LOG.info("Undo: %s", result)
         return result
 
+    def suspend_card(self, card_id: int) -> bool:
+        """Suspend a single card until the user manually unsuspends it."""
+        result: bool = self._invoke("suspend", cards=[card_id])
+        LOG.info("Suspended card %d: %s", card_id, result)
+        return result
+
+    def suspend_note(self, note_id: int) -> bool:
+        """Suspend every card belonging to a note."""
+        card_ids: list[int] = self._invoke("findCards", query=f"nid:{note_id}")
+        if not card_ids:
+            LOG.info("Suspend note %d: no cards found", note_id)
+            return False
+        result: bool = self._invoke("suspend", cards=card_ids)
+        LOG.info("Suspended note %d (%d cards): %s", note_id, len(card_ids), result)
+        return result
+
     def sync(self) -> None:
         """Sync the Anki collection with AnkiWeb."""
         self._invoke("sync")

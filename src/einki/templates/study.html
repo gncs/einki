@@ -86,25 +86,53 @@
             cursor: pointer;
         }
         .undo-btn:hover { background: #e9ecef; }
-        .mark-btn {
-            background: none;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            padding: 4px 12px;
-            font-size: 0.85rem;
-            color: #6c757d;
+        .edit-menu {
+            position: relative;
+            display: inline-block;
+        }
+        .edit-menu > summary {
+            list-style: none;
             cursor: pointer;
+            display: inline-block;
+            line-height: 1.2;
             white-space: nowrap;
         }
-        .mark-btn:hover { background: #e9ecef; }
-        .mark-btn.marked {
-            background: #fff3cd;
-            border-color: #ffecb5;
-            color: #664d03;
+        .edit-menu > summary::-webkit-details-marker { display: none; }
+        .edit-menu[open] > summary {
+            background: #e9ecef;
         }
-        .mark-btn.marked:hover { background: #ffe69c; }
-        @media (max-width: 480px) {
-            .mark-label { display: none; }
+        .edit-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 10;
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 6px;
+            min-width: 120px;
+        }
+        .edit-panel .undo-btn,
+        .edit-panel > details > summary { width: 100%; text-align: left; box-sizing: border-box; }
+        .suspend-sub > summary {
+            list-style: none;
+            cursor: pointer;
+        }
+        .suspend-sub > summary::-webkit-details-marker { display: none; }
+        .suspend-sub[open] > summary {
+            background: #e9ecef;
+        }
+        .suspend-sub-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+            padding-left: 12px;
+            border-left: 2px solid #dee2e6;
         }
         .stats {
             display: flex;
@@ -133,14 +161,36 @@
         <p class="header" style="margin:0;"><a href="/decks">← Decks</a> / {{ deck }}</p>
         <div style="display:flex;gap:8px;">
             {% if card %}
-            <form method="post" action="/mark_card" class="undo-form">
-                <input type="hidden" name="deck" value="{{ deck }}">
-                <input type="hidden" name="note_id" value="{{ card.note_id }}">
-                <input type="hidden" name="answer_shown" value="{{ '1' if answer_shown else '0' }}" class="answer-shown-flag">
-                <button type="submit" class="mark-btn {{ 'marked' if card.is_marked }}" title="{{ 'Unmark' if card.is_marked else 'Mark' }}">
-                    <span class="mark-star">{{ "★" if card.is_marked else "☆" }}</span><span class="mark-label"> {{ "Marked" if card.is_marked else "Mark" }}</span>
-                </button>
-            </form>
+            <details class="edit-menu">
+                <summary class="undo-btn" title="Edit">Edit ▾</summary>
+                <div class="edit-panel">
+                    <form method="post" action="/mark_card" class="undo-form">
+                        <input type="hidden" name="deck" value="{{ deck }}">
+                        <input type="hidden" name="note_id" value="{{ card.note_id }}">
+                        <input type="hidden" name="answer_shown" value="{{ '1' if answer_shown else '0' }}" class="answer-shown-flag">
+                        <button type="submit" class="undo-btn" title="{{ 'Unmark' if card.is_marked else 'Mark' }}">
+                            {{ "Unmark" if card.is_marked else "Mark" }}
+                        </button>
+                    </form>
+                    <details class="suspend-sub">
+                        <summary class="undo-btn" title="Suspend">Suspend ▸</summary>
+                        <div class="suspend-sub-panel">
+                            <form method="post" action="/suspend" class="undo-form">
+                                <input type="hidden" name="deck" value="{{ deck }}">
+                                <input type="hidden" name="card_id" value="{{ card.card_id }}">
+                                <input type="hidden" name="scope" value="card">
+                                <button type="submit" class="undo-btn">Card</button>
+                            </form>
+                            <form method="post" action="/suspend" class="undo-form">
+                                <input type="hidden" name="deck" value="{{ deck }}">
+                                <input type="hidden" name="note_id" value="{{ card.note_id }}">
+                                <input type="hidden" name="scope" value="note">
+                                <button type="submit" class="undo-btn">Note</button>
+                            </form>
+                        </div>
+                    </details>
+                </div>
+            </details>
             {% endif %}
             <form method="post" action="/sync" class="undo-form">
                 <input type="hidden" name="next" value="/study/{{ deck }}">
@@ -225,6 +275,18 @@
                 flags[i].value = '1';
             }
         }
+        document.addEventListener('click', function (event) {
+            var menus = document.querySelectorAll('details.edit-menu[open]');
+            for (var i = 0; i < menus.length; i++) {
+                if (!menus[i].contains(event.target)) {
+                    menus[i].removeAttribute('open');
+                    var subs = menus[i].querySelectorAll('details[open]');
+                    for (var j = 0; j < subs.length; j++) {
+                        subs[j].removeAttribute('open');
+                    }
+                }
+            }
+        });
     </script>
     {% endif %}
 </body>

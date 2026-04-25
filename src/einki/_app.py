@@ -167,6 +167,12 @@ def _register_anki_routes(  # noqa: C901
         """Toggle the 'marked' tag on the current card's note."""
         return _handle_mark(anki_client)
 
+    @app.route("/suspend", methods=["POST"])
+    @flask_login.login_required  # type: ignore[untyped-decorator]
+    def suspend() -> werkzeug.Response:
+        """Suspend the current card or note, then advance to the next card."""
+        return _handle_suspend(anki_client)
+
     @app.route("/media/<path:filename>")
     @flask_login.login_required  # type: ignore[untyped-decorator]
     def media(filename: str) -> werkzeug.Response:
@@ -207,6 +213,18 @@ def _handle_mark(anki_client: AnkiClient | None) -> werkzeug.Response:
     return flask.redirect(
         flask.url_for("study", deck=deck, answer_shown="1" if answer_shown else None),
     )
+
+
+def _handle_suspend(anki_client: AnkiClient | None) -> werkzeug.Response:
+    """Suspend the current card or note, then redirect to the next card."""
+    deck = flask.request.form["deck"]
+    scope = flask.request.form.get("scope")
+    if anki_client is not None and scope in ("card", "note"):
+        if scope == "card":
+            anki_client.suspend_card(int(flask.request.form["card_id"]))
+        else:
+            anki_client.suspend_note(int(flask.request.form["note_id"]))
+    return flask.redirect(flask.url_for("study", deck=deck))
 
 
 def _handle_undo(anki_client: AnkiClient | None) -> str | werkzeug.Response:
