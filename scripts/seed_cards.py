@@ -5,6 +5,7 @@ import argparse
 import base64
 import pathlib
 import sys
+import typing as ty
 
 from einki._anki_client import AnkiClient
 
@@ -54,11 +55,30 @@ def _wipe_deck(client: AnkiClient, deck: str) -> None:
         print(f"Deck '{deck}' is already empty.")
         return
 
-    prompt = (
-        f"About to delete {len(note_ids)} notes from deck '{deck}'. "
-        "Type 'yes' to confirm: "
+    card_ids: list[int] = client._invoke(  # noqa: SLF001
+        "findCards",
+        query=f"deck:{deck}",
     )
-    answer = input(prompt).strip().lower()
+    sample_count = min(3, len(note_ids))
+    samples: list[dict[str, ty.Any]] = client._invoke(  # noqa: SLF001
+        "notesInfo",
+        notes=note_ids[:sample_count],
+    )
+
+    print(f"Deck:    {deck}")
+    print(f"Notes:   {len(note_ids)}")
+    print(f"Cards:   {len(card_ids)}")
+    if samples:
+        print("Sample first fields:")
+        for note in samples:
+            fields = note.get("fields", {})
+            first_field_name = next(iter(fields), None)
+            value = fields[first_field_name]["value"] if first_field_name else "<empty>"
+            print(f"  - {value[:80]!r}")
+        if len(note_ids) > sample_count:
+            print(f"  ... and {len(note_ids) - sample_count} more.")
+
+    answer = input("Type 'yes' to confirm deletion: ").strip().lower()
     if answer != "yes":
         print("Aborted; no notes were deleted.")
         sys.exit(1)
