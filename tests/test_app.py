@@ -3,7 +3,7 @@
 import flask
 import flask.testing
 
-from einki._app import create_app
+from einki._app import _rewrite_media_urls, create_app
 
 _USERNAME = "testuser"
 _PASSWORD = "testpass"  # noqa: S105
@@ -104,6 +104,83 @@ def test_logout_clears_session() -> None:
     assert "/login" in response.headers["Location"]
 
     response = client.get("/")
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
+def test_rewrite_media_urls_basic() -> None:
+    """Bare filenames should be prefixed with /media/."""
+    assert _rewrite_media_urls('<img src="foo.png">') == '<img src="/media/foo.png">'
+
+
+def test_rewrite_media_urls_single_quotes() -> None:
+    """Single-quoted src attributes should be rewritten too."""
+    assert _rewrite_media_urls("<img src='foo.png'>") == "<img src='/media/foo.png'>"
+
+
+def test_rewrite_media_urls_absolute_untouched() -> None:
+    """Absolute URLs must not be rewritten."""
+    for src in (
+        "http://example.com/foo.png",
+        "https://example.com/foo.png",
+        "data:image/png;base64,abc",
+        "//cdn.example.com/foo.png",
+    ):
+        html = f'<img src="{src}">'
+        assert _rewrite_media_urls(html) == html
+
+
+def test_rewrite_media_urls_already_prefixed() -> None:
+    """Already-prefixed /media/ URLs should be left alone (idempotent)."""
+    html = '<img src="/media/foo.png">'
+    assert _rewrite_media_urls(html) == html
+    assert _rewrite_media_urls(_rewrite_media_urls(html)) == html
+
+
+def test_rewrite_media_urls_special_chars() -> None:
+    """Filenames with spaces or non-ASCII must be URL-encoded."""
+    result = _rewrite_media_urls('<img src="my file.png">')
+    assert result == '<img src="/media/my%20file.png">'
+
+    result = _rewrite_media_urls('<img src="café.png">')
+    assert result == '<img src="/media/caf%C3%A9.png">'
+
+
+def test_rewrite_media_urls_multiple_imgs() -> None:
+    """Each <img> tag in the HTML should be rewritten independently."""
+    html = '<p><img src="a.png"> and <img class="x" src="b.jpg" alt="b"></p>'
+    expected = (
+        '<p><img src="/media/a.png"> and <img class="x" src="/media/b.jpg" alt="b"></p>'
+    )
+    assert _rewrite_media_urls(html) == expected
+
+
+def test_media_route_without_anki() -> None:
+    """GET /media/<file> returns 404 when AnkiConnect is not configured."""
+    client = _make_client()
+    _login(client)
+
+    response = client.get("/media/foo.png")
+
+    assert response.status_code == 404
+
+
+def test_media_route_rejects_traversal() -> None:
+    """GET /media/../etc/passwd must be rejected as 404."""
+    client = _make_client()
+    _login(client)
+
+    response = client.get("/media/../etc/passwd")
+
+    assert response.status_code == 404
+
+
+def test_media_route_requires_login() -> None:
+    """GET /media/<file> without a session should redirect to /login."""
+    client = _make_client()
+
+    response = client.get("/media/foo.png")
+
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 
