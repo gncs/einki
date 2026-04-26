@@ -28,7 +28,7 @@ The browser UI keeps things lean but covers the day-to-day Anki workflow:
   blue, pink, turquoise, purple) — shown top-right of the card as
   e.g. `Blue ■`, tinted on color screens, readable as plain text on
   monochrome e-ink.
-- **Suspend** a single card or the whole note from the same Edit menu.
+- **Suspend** a single card or the whole note.
 - **Undo** the last action.
 - **Sync** with AnkiWeb on demand from the header.
 - **Image** fields render inline.
