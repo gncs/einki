@@ -26,6 +26,7 @@
             border-radius: 8px;
             padding: 24px;
             margin-bottom: 20px;
+            position: relative;
         }
         .card-content img {
             max-width: 100%;
@@ -163,6 +164,26 @@
         .stats .learn { color: #dc3545; font-weight: 600; margin-right: 10px; }
         .stats .review { color: #198754; font-weight: 600; }
         .stats .current { text-decoration: underline; }
+        .card-indicators {
+            position: absolute;
+            top: 6px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            pointer-events: none;
+        }
+        .marked-indicator { color: #f59f00; font-weight: 600; }
+        .flag-indicator { font-weight: 600; }
+        .flag-indicator.flag-red { color: #d32f2f; }
+        .flag-indicator.flag-orange { color: #ed6c02; }
+        .flag-indicator.flag-green { color: #2e7d32; }
+        .flag-indicator.flag-blue { color: #1976d2; }
+        .flag-indicator.flag-pink { color: #d81b60; }
+        .flag-indicator.flag-turquoise { color: #0097a7; }
+        .flag-indicator.flag-purple { color: #7b1fa2; }
         .stale {
             text-align: center;
             background: #fff3cd;
@@ -226,9 +247,9 @@
                                 <input type="hidden" name="flag" value="{{ 0 if card.flag == flag_value else flag_value }}">
                                 <button
                                     type="submit"
-                                    class="undo-btn{{ ' current' if card.flag == flag_value else '' }}"
+                                    class="undo-btn flag-indicator flag-{{ flag_name | lower }}{{ ' current' if card.flag == flag_value else '' }}"
                                     title="{{ 'Clear flag' if card.flag == flag_value else 'Set ' + flag_name + ' flag' }}"
-                                >{{ flag_name }}</button>
+                                >{{ flag_name }} ■</button>
                             </form>
                             {% endfor %}
                         </div>
@@ -283,6 +304,10 @@
     <style>{{ card.css | safe }}</style>
 
     <div class="card-content" id="question"{% if answer_shown %} style="display:none"{% endif %}>
+        <div class="card-indicators">
+            <span class="marked-indicator">{% if card.is_marked %}★{% endif %}</span>
+            <span class="flag-indicator flag-{{ card.flag.name | lower }}">{% if card.flag %}{{ card.flag.name | capitalize }} ■{% endif %}</span>
+        </div>
         {{ card.question | safe }}
     </div>
 
@@ -290,6 +315,10 @@
 
     <div class="answer-section" id="answer-section"{% if answer_shown %} style="display:block"{% endif %}>
         <div class="card-content">
+            <div class="card-indicators">
+                <span class="marked-indicator">{% if card.is_marked %}★{% endif %}</span>
+                <span class="flag-indicator flag-{{ card.flag.name | lower }}">{% if card.flag %}{{ card.flag.name | capitalize }} ■{% endif %}</span>
+            </div>
             {{ card.answer | safe }}
         </div>
         <form method="post" action="/answer_card">
