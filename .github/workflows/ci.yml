@@ -6,7 +6,22 @@ on:
   workflow_dispatch:
 
 jobs:
-  checks:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ruff-lint
+            run: uv run ruff check .
+          - name: ruff-format
+            run: uv run ruff format --check .
+          - name: ty
+            run: uv run ty check
+          - name: mypy
+            run: uv run mypy src tests
+          - name: pytest
+            run: uv run pytest --cov --cov-report=term-missing
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,17 +35,5 @@ jobs:
       - name: Sync dependencies
         run: uv sync --frozen
 
-      - name: Ruff lint
-        run: uv run ruff check .
-
-      - name: Ruff format check
-        run: uv run ruff format --check .
-
-      - name: ty type check
-        run: uv run ty check
-
-      - name: mypy type check
-        run: uv run mypy src tests
-
-      - name: Pytest with coverage
-        run: uv run pytest --cov --cov-report=term-missing
+      - name: ${{ matrix.name }}
+        run: ${{ matrix.run }}
