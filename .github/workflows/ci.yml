@@ -1,3 +1,5 @@
+# IMPORTANT: keep this in sync with scripts/run_checks.sh.
+# If you change a command here, mirror it in the script (and vice versa).
 name: CI
 
 on:
