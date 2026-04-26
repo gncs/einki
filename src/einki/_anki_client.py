@@ -38,6 +38,10 @@ class Flag(enum.IntEnum):
     PURPLE = 7
 
 
+CardId = ty.NewType("CardId", int)
+NoteId = ty.NewType("NoteId", int)
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class DeckStats:
     """Statistics for a single Anki deck."""
@@ -53,8 +57,8 @@ class DeckStats:
 class CardInfo:
     """Rendered card content from Anki's scheduler."""
 
-    card_id: int
-    note_id: int
+    card_id: CardId
+    note_id: NoteId
     question: str
     answer: str
     css: str
@@ -155,7 +159,7 @@ class AnkiClient:
             return None
         self._invoke("guiStartCardTimer")
 
-        card_id = result["cardId"]
+        card_id = CardId(result["cardId"])
         note_id = self._note_id_for_card(card_id)
         is_marked = self._is_marked(note_id)
         state, flag = self._card_state_and_flag(card_id)
@@ -182,12 +186,12 @@ class AnkiClient:
         )
         return card
 
-    def _note_id_for_card(self, card_id: int) -> int:
+    def _note_id_for_card(self, card_id: CardId) -> NoteId:
         """Map a card ID to its parent note ID."""
         note_ids: list[int] = self._invoke("cardsToNotes", cards=[card_id])
-        return note_ids[0]
+        return NoteId(note_ids[0])
 
-    def _card_state_and_flag(self, card_id: int) -> tuple[CardState, Flag]:
+    def _card_state_and_flag(self, card_id: CardId) -> tuple[CardState, Flag]:
         """Return (state, flag) for the given card.
 
         Uses AnkiConnect's ``cardsInfo``: ``type`` field
@@ -208,12 +212,12 @@ class AnkiClient:
             return CardState.LEARN, flag
         return CardState.REVIEW, flag
 
-    def _is_marked(self, note_id: int) -> bool:
+    def _is_marked(self, note_id: NoteId) -> bool:
         """Check whether a note has the 'marked' tag."""
         tags: list[str] = self._invoke("getNoteTags", note=note_id)
         return any(t.lower() == "marked" for t in tags)
 
-    def toggle_mark(self, note_id: int) -> bool:
+    def toggle_mark(self, note_id: NoteId) -> bool:
         """Toggle the 'marked' tag on a note. Returns the new marked state."""
         if self._is_marked(note_id):
             self._invoke("removeTags", notes=[note_id], tags="marked")
@@ -249,7 +253,7 @@ class AnkiClient:
         LOG.info("Undo: %s", result)
         return result
 
-    def set_flag(self, card_id: int, flag: Flag) -> None:
+    def set_flag(self, card_id: CardId, flag: Flag) -> None:
         """Set a card's colored flag (pass ``Flag.NONE`` to clear).
 
         Anki flags are categorical: a card has at most one flag at any time.
@@ -272,13 +276,13 @@ class AnkiClient:
             raise RuntimeError(msg)
         LOG.info("Set flag of card %d to %s", card_id, flag.name)
 
-    def suspend_card(self, card_id: int) -> bool:
+    def suspend_card(self, card_id: CardId) -> bool:
         """Suspend a single card until the user manually unsuspends it."""
         result: bool = self._invoke("suspend", cards=[card_id])
         LOG.info("Suspended card %d: %s", card_id, result)
         return result
 
-    def suspend_note(self, note_id: int) -> bool:
+    def suspend_note(self, note_id: NoteId) -> bool:
         """Suspend every card belonging to a note."""
         card_ids: list[int] = self._invoke("findCards", query=f"nid:{note_id}")
         if not card_ids:
