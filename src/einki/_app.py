@@ -13,7 +13,7 @@ import flask
 import flask_login
 import werkzeug
 
-from einki._anki_client import AnkiClient
+from einki._anki_client import AnkiClient, Flag
 from einki._sync import sync_state, trigger_sync
 
 LOG = logging.getLogger(__name__)
@@ -173,6 +173,12 @@ def _register_anki_routes(  # noqa: C901
         """Suspend the current card or note, then advance to the next card."""
         return _handle_suspend(anki_client)
 
+    @app.route("/set_flag", methods=["POST"])
+    @flask_login.login_required  # type: ignore[untyped-decorator]
+    def set_flag() -> werkzeug.Response:
+        """Set (or clear) the colored flag on the current card."""
+        return _handle_set_flag(anki_client)
+
     @app.route("/media/<path:filename>")
     @flask_login.login_required  # type: ignore[untyped-decorator]
     def media(filename: str) -> werkzeug.Response:
@@ -225,6 +231,22 @@ def _handle_suspend(anki_client: AnkiClient | None) -> werkzeug.Response:
         else:
             anki_client.suspend_note(int(flask.request.form["note_id"]))
     return flask.redirect(flask.url_for("study", deck=deck))
+
+
+def _handle_set_flag(anki_client: AnkiClient | None) -> werkzeug.Response:
+    """Set the flag on the current card, preserving answer-shown state."""
+    deck = flask.request.form["deck"]
+    answer_shown = flask.request.form.get("answer_shown") == "1"
+    try:
+        flag = Flag(int(flask.request.form["flag"]))
+    except (KeyError, ValueError):
+        flag = None
+    if anki_client is not None and flag is not None:
+        card_id = int(flask.request.form["card_id"])
+        anki_client.set_flag(card_id, flag)
+    return flask.redirect(
+        flask.url_for("study", deck=deck, answer_shown="1" if answer_shown else None),
+    )
 
 
 def _handle_undo(anki_client: AnkiClient | None) -> str | werkzeug.Response:
