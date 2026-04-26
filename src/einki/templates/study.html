@@ -134,6 +134,24 @@
             padding-left: 12px;
             border-left: 2px solid #dee2e6;
         }
+        .flag-sub > summary {
+            list-style: none;
+            cursor: pointer;
+        }
+        .flag-sub > summary::-webkit-details-marker { display: none; }
+        .flag-sub[open] > summary {
+            background: #e9ecef;
+        }
+        .flag-sub-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+            padding-left: 12px;
+            border-left: 2px solid #dee2e6;
+        }
+        .flag-sub-panel .undo-form { margin: 0; }
+        .flag-sub-panel .undo-btn.current { background: #e9ecef; font-weight: 600; }
         .stats {
             display: flex;
             justify-content: flex-start;
@@ -187,6 +205,32 @@
                                 <input type="hidden" name="scope" value="note">
                                 <button type="submit" class="undo-btn">Note</button>
                             </form>
+                        </div>
+                    </details>
+                    <details class="flag-sub">
+                        <summary class="undo-btn" title="Flag">Flag ▸</summary>
+                        <div class="flag-sub-panel">
+                            {% for flag_value, flag_name in [
+                                (1, 'Red'),
+                                (2, 'Orange'),
+                                (3, 'Green'),
+                                (4, 'Blue'),
+                                (5, 'Pink'),
+                                (6, 'Turquoise'),
+                                (7, 'Purple'),
+                            ] %}
+                            <form method="post" action="/set_flag" class="undo-form">
+                                <input type="hidden" name="deck" value="{{ deck }}">
+                                <input type="hidden" name="card_id" value="{{ card.card_id }}">
+                                <input type="hidden" name="answer_shown" value="{{ '1' if answer_shown else '0' }}" class="answer-shown-flag">
+                                <input type="hidden" name="flag" value="{{ 0 if card.flag == flag_value else flag_value }}">
+                                <button
+                                    type="submit"
+                                    class="undo-btn{{ ' current' if card.flag == flag_value else '' }}"
+                                    title="{{ 'Clear flag' if card.flag == flag_value else 'Set ' + flag_name + ' flag' }}"
+                                >{{ flag_name }}</button>
+                            </form>
+                            {% endfor %}
                         </div>
                     </details>
                 </div>

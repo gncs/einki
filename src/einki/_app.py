@@ -13,7 +13,7 @@ import flask
 import flask_login
 import werkzeug
 
-from einki._anki_client import AnkiClient
+from einki._anki_client import AnkiClient, CardId, Flag, NoteId
 from einki._sync import sync_state, trigger_sync
 
 LOG = logging.getLogger(__name__)
@@ -173,6 +173,12 @@ def _register_anki_routes(  # noqa: C901
         """Suspend the current card or note, then advance to the next card."""
         return _handle_suspend(anki_client)
 
+    @app.route("/set_flag", methods=["POST"])
+    @flask_login.login_required  # type: ignore[untyped-decorator]
+    def set_flag() -> werkzeug.Response:
+        """Set (or clear) the colored flag on the current card."""
+        return _handle_set_flag(anki_client)
+
     @app.route("/media/<path:filename>")
     @flask_login.login_required  # type: ignore[untyped-decorator]
     def media(filename: str) -> werkzeug.Response:
@@ -206,7 +212,7 @@ def _serve_media(
 def _handle_mark(anki_client: AnkiClient | None) -> werkzeug.Response:
     """Toggle the 'marked' tag on the current card's note."""
     deck = flask.request.form["deck"]
-    note_id = int(flask.request.form["note_id"])
+    note_id = NoteId(int(flask.request.form["note_id"]))
     answer_shown = flask.request.form.get("answer_shown") == "1"
     if anki_client is not None:
         anki_client.toggle_mark(note_id)
@@ -221,10 +227,26 @@ def _handle_suspend(anki_client: AnkiClient | None) -> werkzeug.Response:
     scope = flask.request.form.get("scope")
     if anki_client is not None and scope in ("card", "note"):
         if scope == "card":
-            anki_client.suspend_card(int(flask.request.form["card_id"]))
+            anki_client.suspend_card(CardId(int(flask.request.form["card_id"])))
         else:
-            anki_client.suspend_note(int(flask.request.form["note_id"]))
+            anki_client.suspend_note(NoteId(int(flask.request.form["note_id"])))
     return flask.redirect(flask.url_for("study", deck=deck))
+
+
+def _handle_set_flag(anki_client: AnkiClient | None) -> werkzeug.Response:
+    """Set the flag on the current card, preserving answer-shown state."""
+    deck = flask.request.form["deck"]
+    answer_shown = flask.request.form.get("answer_shown") == "1"
+    try:
+        flag = Flag(int(flask.request.form["flag"]))
+    except (KeyError, ValueError):
+        flag = None
+    if anki_client is not None and flag is not None:
+        card_id = CardId(int(flask.request.form["card_id"]))
+        anki_client.set_flag(card_id, flag)
+    return flask.redirect(
+        flask.url_for("study", deck=deck, answer_shown="1" if answer_shown else None),
+    )
 
 
 def _handle_undo(anki_client: AnkiClient | None) -> str | werkzeug.Response:
@@ -249,7 +271,7 @@ def _handle_answer(anki_client: AnkiClient | None) -> str | werkzeug.Response:
     """Process a card answer, guarding against stale cards."""
     ease = int(flask.request.form["ease"])
     deck = flask.request.form["deck"]
-    expected_card_id = int(flask.request.form["card_id"])
+    expected_card_id = CardId(int(flask.request.form["card_id"]))
     if anki_client is not None:
         current = anki_client.current_card()
         if current is not None and current.card_id == expected_card_id:

@@ -238,3 +238,63 @@ def test_suspend_unknown_scope_redirects() -> None:
 
     assert response.status_code == 302
     assert response.headers["Location"] == "/study/Default"
+
+
+def test_set_flag_requires_login() -> None:
+    """POST /set_flag without a session should redirect to /login."""
+    client = _make_client()
+
+    response = client.post(
+        "/set_flag",
+        data={"deck": "Default", "card_id": "1", "flag": "1"},
+    )
+
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
+def test_set_flag_without_anki_redirects() -> None:
+    """POST /set_flag with no AnkiClient redirects to /study/<deck>."""
+    client = _make_client()
+    _login(client)
+
+    response = client.post(
+        "/set_flag",
+        data={"deck": "Default", "card_id": "1", "flag": "3"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/study/Default"
+
+
+def test_set_flag_preserves_answer_shown() -> None:
+    """answer_shown=1 should round-trip through the redirect."""
+    client = _make_client()
+    _login(client)
+
+    response = client.post(
+        "/set_flag",
+        data={
+            "deck": "Default",
+            "card_id": "1",
+            "flag": "0",
+            "answer_shown": "1",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/study/Default?answer_shown=1"
+
+
+def test_set_flag_invalid_value_redirects() -> None:
+    """Out-of-range flag values must not raise — just redirect back."""
+    client = _make_client()
+    _login(client)
+
+    response = client.post(
+        "/set_flag",
+        data={"deck": "Default", "card_id": "1", "flag": "99"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/study/Default"
