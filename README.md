@@ -10,6 +10,12 @@ copy of Anki in the background — scheduling, grading, and sync are all
 done by real Anki, so your deck stays compatible with every other Anki
 client.
 
+## Screenshots
+
+<p align="center">
+<img src="screenshot.png" alt="einki study page" width="480">
+</p>
+
 ## Kindle compatibility
 
 Designed for and tested on the Kindle's built-in "Experimental"
