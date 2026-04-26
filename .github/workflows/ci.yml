@@ -33,4 +33,4 @@ jobs:
         run: uv run mypy src tests
 
       - name: Pytest with coverage
-        run: uv run pytest --cov=einki --cov-report=term-missing
+        run: uv run pytest --cov --cov-report=term-missing
