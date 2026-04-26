@@ -31,7 +31,7 @@ The browser UI keeps things lean but covers the day-to-day Anki workflow:
 - **Suspend** a single card or the whole note from the same Edit menu.
 - **Undo** the last action.
 - **Sync** with AnkiWeb on demand from the header.
-- **Image and audio** fields render inline — same look as the Anki
+- **Image** fields render inline — same look as the Anki
   desktop client.
 
 ## Kindle compatibility
