@@ -16,6 +16,24 @@ client.
 <img src="screenshot.png" alt="einki study page" width="480">
 </p>
 
+## Features
+
+The browser UI keeps things lean but covers the day-to-day Anki workflow:
+
+- **Deck list** with new / learning / review counts at a glance.
+- **Study view** with show-answer and the standard four ease buttons
+  (Again / Hard / Good / Easy), including next-review intervals.
+- **Mark** notes with a star — shown top-left of the card.
+- **Flag** cards in any of the seven Anki colors (red, orange, green,
+  blue, pink, turquoise, purple) — shown top-right of the card as
+  e.g. `Blue ■`, tinted on color screens, readable as plain text on
+  monochrome e-ink.
+- **Suspend** a single card or the whole note from the same Edit menu.
+- **Undo** the last action.
+- **Sync** with AnkiWeb on demand from the header.
+- **Image and audio** fields render inline — same look as the Anki
+  desktop client.
+
 ## Kindle compatibility
 
 Designed for and tested on the Kindle's built-in "Experimental"
