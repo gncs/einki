@@ -4,11 +4,16 @@
 
 <p align="center"><em>Anki for e-ink devices.</em></p>
 
-einki lets you revise your Anki flashcards from anywhere on your Kindle's
+einki lets you review your Anki flashcards from anywhere on your Kindle's
 built-in web browser. It is a small Flask server that drives a headless
 copy of Anki in the background — scheduling, grading, and sync are all
 done by real Anki, so your deck stays compatible with every other Anki
 client.
+
+einki is a **review-only** client: it does not support creating new
+cards or editing existing ones. Author your decks in the desktop or
+mobile Anki app, sync them to AnkiWeb, and use einki on the Kindle
+purely to work through the daily queue.
 
 ## Screenshots
 
