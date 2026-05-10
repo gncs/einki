@@ -38,6 +38,11 @@ The browser UI keeps things lean but covers the day-to-day Anki workflow:
 - **Sync** with AnkiWeb on demand from the header.
 - **Image** fields render inline.
 
+Burying a card or note (the usual companion to *Suspend*) is **not
+supported**: AnkiConnect does not expose a bury endpoint, so einki
+cannot offer the action without forking the plugin. Bury from a
+desktop or mobile Anki client instead.
+
 ## Kindle compatibility
 
 Designed for and tested on the Kindle's built-in "Experimental"
