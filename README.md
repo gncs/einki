@@ -4,16 +4,19 @@
 
 <p align="center"><em>Anki for e-ink devices.</em></p>
 
-einki lets you review your Anki flashcards from anywhere on your Kindle's
-built-in web browser. It is a small Flask server that drives a headless
-copy of Anki in the background — scheduling, grading, and sync are all
-done by real Anki, so your deck stays compatible with every other Anki
-client.
+einki lets you review your Anki flashcards from anywhere on your
+Kindle's built-in web browser. Real Anki runs in the background, so
+your deck stays fully compatible with every other Anki client —
+scheduling, grading, and sync are unchanged.
 
 einki is a **review-only** client: it does not support creating new
 cards or editing existing ones. Author your decks in the desktop or
 mobile Anki app, sync them to AnkiWeb, and use einki on the Kindle
 purely to work through the daily queue.
+
+einki also **requires an internet connection**. The Kindle talks to
+the einki server over HTTPS on every action, so reviews do not work
+offline.
 
 ## Screenshots
 
@@ -78,11 +81,12 @@ flowchart LR
     anki <-. "sync (optional)" .-> ankiweb
 ```
 
-einki ships as a single opinionated stack: nginx terminates TLS, a
-Let's Encrypt cert is obtained and renewed against a DuckDNS
-subdomain, and einki talks to a headless Anki via AnkiConnect. The
-only genuinely optional piece is the AnkiWeb link — everything else
-is baked into the compose file and nginx config.
+einki ships as a single opinionated stack: a small Flask server
+(einki) drives a headless copy of Anki via AnkiConnect, nginx
+terminates TLS, and a Let's Encrypt cert is obtained and renewed
+against a DuckDNS subdomain. The only genuinely optional piece is
+the AnkiWeb link — everything else is baked into the compose file
+and nginx config.
 
 Running with a different TLS setup (a paid domain, your own nginx
 in front, no TLS at all on a trusted LAN, etc.) is supported, but
