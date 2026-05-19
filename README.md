@@ -147,7 +147,23 @@ cd ~/einki
 
 Log out and back in so the `docker` group takes effect.
 
-### 4. Configure secrets
+### 4. Add swap (recommended on the 1 GB tier)
+
+The 1 GB Lightsail tier ships with no swap. Without it, transient
+memory pressure (apt unattended-upgrades, snapd refresh, log rotation)
+can deadlock the kernel and trigger AWS status check failures — visible
+on the Lightsail metrics page even when CPU usage stays low. A small
+swap file turns these hangs into graceful slowdowns.
+
+```bash
+./scripts/add_swap.sh                  # 2 GB swap file, vm.swappiness=10
+```
+
+The script is idempotent (safe to re-run) and persists the swap file
+in `/etc/fstab` so it survives reboots. Skip this step on tiers with
+≥ 4 GB RAM.
+
+### 5. Configure secrets
 
 On the server:
 
@@ -160,7 +176,7 @@ $EDITOR .env                           # follow the comments in the file
 
 `.env` is gitignored and never leaves the server.
 
-### 5. Bootstrap HTTPS and start the stack
+### 6. Bootstrap HTTPS and start the stack
 
 ```bash
 ./scripts/setup_https.sh
@@ -184,7 +200,7 @@ current IP. No cron, no systemd.
 See [`docker/nginx/README.md`](docker/nginx/README.md) for the TLS
 pipeline in more detail.
 
-### 6. First-time AnkiWeb sync (optional)
+### 7. First-time AnkiWeb sync (optional)
 
 If you want your existing AnkiWeb collection on the server, sync once
 via VNC. AnkiConnect can't click through the "Download from AnkiWeb?"
