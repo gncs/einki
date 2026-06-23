@@ -308,7 +308,7 @@
             <span class="marked-indicator">{% if card.is_marked %}★{% endif %}</span>
             <span class="flag-indicator flag-{{ card.flag.name | lower }}">{% if card.flag %}{{ card.flag.name | capitalize }} ■{% endif %}</span>
         </div>
-        {{ card.question | safe }}
+        <div class="card card{{ card.ordinal + 1 }}">{{ card.question | safe }}</div>
     </div>
 
     <button class="show-answer-btn" id="show-btn"{% if answer_shown %} style="display:none"{% endif %} onclick="showAnswer()">Show Answer</button>
@@ -319,7 +319,7 @@
                 <span class="marked-indicator">{% if card.is_marked %}★{% endif %}</span>
                 <span class="flag-indicator flag-{{ card.flag.name | lower }}">{% if card.flag %}{{ card.flag.name | capitalize }} ■{% endif %}</span>
             </div>
-            {{ card.answer | safe }}
+            <div class="card card{{ card.ordinal + 1 }}">{{ card.answer | safe }}</div>
         </div>
         <form method="post" action="/answer_card">
             <input type="hidden" name="deck" value="{{ deck }}">
