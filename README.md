@@ -225,6 +225,25 @@ If the sync token doesn't persist after a restart (rare), run
 `scripts/debug_anki.sh` and check that `syncKey` in `prefs21.db` is
 non-empty.
 
+**When you'll need the VNC dance again.** This is not strictly a
+one-off. Any *full sync* needs the GUI, because AnkiConnect cannot
+click through Anki's one-way "Download from AnkiWeb? / Upload to
+AnkiWeb?" dialog. Two cases trigger it:
+
+- **Pulling AnkiWeb over the host.** Whenever you want to overwrite
+  the server's local collection with the AnkiWeb copy (a full
+  *download*), reconnect over VNC and confirm the direction by hand.
+- **Schema changes.** Anki forces a full sync whenever the collection
+  *schema* changes — most commonly when you add or edit a **note
+  type**, add or remove a field, or change a card template. The next
+  sync then blocks on the upload/download dialog, so AnkiConnect's
+  automatic sync stalls until you clear it once over VNC.
+
+In both cases the steps are the same as above: open the tunnel
+(`ssh -L 5900:localhost:5900 <host>`), point a VNC viewer at
+`localhost:5900`, click *Sync* in the Anki GUI, and confirm the
+correct direction. Automatic AnkiConnect syncs resume afterwards.
+
 ## Running a different setup
 
 The shipped configuration is HTTPS via DuckDNS + Let's Encrypt. There
