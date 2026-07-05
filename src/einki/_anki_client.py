@@ -67,6 +67,16 @@ class CardInfo:
     is_marked: bool
     state: CardState
     flag: Flag
+    ordinal: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class _CardDetails:
+    """Per-card scheduling details parsed from a ``cardsInfo`` response."""
+
+    state: CardState
+    flag: Flag
+    ordinal: int
 
 
 class AnkiClient:
@@ -162,7 +172,7 @@ class AnkiClient:
         card_id = CardId(result["cardId"])
         note_id = self._note_id_for_card(card_id)
         is_marked = self._is_marked(note_id)
-        state, flag = self._card_state_and_flag(card_id)
+        details = self._card_details(card_id)
 
         card = CardInfo(
             card_id=card_id,
@@ -173,16 +183,17 @@ class AnkiClient:
             buttons=result.get("buttons", [1, 2, 3]),
             next_reviews=result.get("nextReviews", []),
             is_marked=is_marked,
-            state=state,
-            flag=flag,
+            state=details.state,
+            flag=details.flag,
+            ordinal=details.ordinal,
         )
         LOG.info(
             "Current card: %d (note: %d, marked: %s, state: %s, flag: %s)",
             card.card_id,
             note_id,
             is_marked,
-            state,
-            flag.name,
+            card.state,
+            card.flag.name,
         )
         return card
 
@@ -191,12 +202,13 @@ class AnkiClient:
         note_ids: list[int] = self._invoke("cardsToNotes", cards=[card_id])
         return NoteId(note_ids[0])
 
-    def _card_state_and_flag(self, card_id: CardId) -> tuple[CardState, Flag]:
-        """Return (state, flag) for the given card.
+    def _card_details(self, card_id: CardId) -> _CardDetails:
+        """Return scheduling state, flag, and template ordinal for a card.
 
         Uses AnkiConnect's ``cardsInfo``: ``type`` field
-        (0=new, 1=learning, 2=review, 3=relearning) and ``flags``
-        (see :class:`Flag`). Unknown ``type`` values fall back to
+        (0=new, 1=learning, 2=review, 3=relearning), ``flags``
+        (see :class:`Flag`), and ``ord`` (0-based template index within
+        the note type). Unknown ``type`` values fall back to
         ``CardState.REVIEW`` (matches how Anki itself buckets odd
         states); unknown flag values fall back to ``Flag.NONE``.
         """
@@ -206,11 +218,14 @@ class AnkiClient:
             flag = Flag(int(info[0].get("flags", 0) or 0))
         except ValueError:
             flag = Flag.NONE
+        ordinal = int(info[0].get("ord", 0) or 0)
         if card_type == 0:
-            return CardState.NEW, flag
-        if card_type in (1, 3):
-            return CardState.LEARN, flag
-        return CardState.REVIEW, flag
+            state = CardState.NEW
+        elif card_type in (1, 3):
+            state = CardState.LEARN
+        else:
+            state = CardState.REVIEW
+        return _CardDetails(state=state, flag=flag, ordinal=ordinal)
 
     def _is_marked(self, note_id: NoteId) -> bool:
         """Check whether a note has the 'marked' tag."""
